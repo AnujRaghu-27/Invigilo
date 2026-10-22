@@ -1,14 +1,33 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 function App() {
   const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
 
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Clean up camera stream when component unmounts
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
   const handleGetCameraAccess = async () => {
-    // If access is already granted, avoid requesting again
-    if (cameraStatus === 'granted') {
+    // If access is already granted and stream is active, avoid requesting again
+    if (cameraStatus === 'granted' && streamRef.current) {
       return;
+    }
+
+    // Stop any existing stream tracks before creating a new one
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
 
     setCameraStatus('requesting');
@@ -25,13 +44,43 @@ function App() {
         audio: false,
       });
 
-      // Stop camera tracks immediately so the indicator light turns off
-      // (Live camera preview is not connected yet)
-      stream.getTracks().forEach((track) => track.stop());
+      // Keep reference to stream for preview lifecycle management
+      streamRef.current = stream;
+
+      // Handle external track termination (e.g., unplugged or revoked permissions)
+      stream.getVideoTracks().forEach((track) => {
+        track.onended = () => {
+          setCameraStatus('error');
+          setErrorMessage('Camera disconnected or access was revoked.');
+          if (videoRef.current) {
+            videoRef.current.srcObject = null;
+          }
+          streamRef.current = null;
+        };
+      });
+
+      // Attach stream to the existing video element
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        try {
+          await videoRef.current.play();
+        } catch (playError) {
+          console.error('Video play error:', playError);
+        }
+      }
 
       setCameraStatus('granted');
     } catch (error) {
       setCameraStatus('error');
+
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
 
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         setErrorMessage('Camera permission was denied. Please allow camera access to continue.');
@@ -94,7 +143,13 @@ function App() {
 
             {/* Black Camera Preview Area */}
             <div className="camera-preview-container">
-              <video className="camera-video" playsInline muted />
+              <video
+                ref={videoRef}
+                className="camera-video"
+                autoPlay
+                playsInline
+                muted
+              />
             </div>
           </div>
 
