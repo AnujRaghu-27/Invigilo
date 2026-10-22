@@ -139,6 +139,33 @@ body {
   background-color: #0f172a;
 }
 
+.btn-camera:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.btn-camera.btn-camera-granted {
+  background-color: #166534;
+  cursor: default;
+  opacity: 1;
+}
+
+/* Status message for camera */
+.camera-status-msg {
+  font-size: 0.85rem;
+  margin-top: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.camera-status-msg.status-success {
+  color: #16a34a;
+}
+
+.camera-status-msg.status-error {
+  color: #dc2626;
+}
+
 .btn-fullscreen {
   background-color: #60a5fa;
   color: #ffffff;

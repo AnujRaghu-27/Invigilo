@@ -1,6 +1,50 @@
+import { useState } from 'react';
 import './App.css';
 
 function App() {
+  const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'error'
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleGetCameraAccess = async () => {
+    // If access is already granted, avoid requesting again
+    if (cameraStatus === 'granted') {
+      return;
+    }
+
+    setCameraStatus('requesting');
+    setErrorMessage('');
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported on this device.');
+      }
+
+      // Request video access only (no audio)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+
+      // Stop camera tracks immediately so the indicator light turns off
+      // (Live camera preview is not connected yet)
+      stream.getTracks().forEach((track) => track.stop());
+
+      setCameraStatus('granted');
+    } catch (error) {
+      setCameraStatus('error');
+
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        setErrorMessage('Camera permission was denied. Please allow camera access to continue.');
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        setErrorMessage('No camera found. Please connect a camera and try again.');
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        setErrorMessage('Camera is currently in use by another application.');
+      } else {
+        setErrorMessage(error.message || 'Unable to access camera. Please try again.');
+      }
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Top-left Application Name */}
@@ -27,9 +71,24 @@ function App() {
                 <p className="permission-description">
                   Kindly configure Camera to attempt quiz/contests.
                 </p>
-                <button type="button" className="btn-camera">
-                  Get Camera Access
+                <button
+                  type="button"
+                  className={`btn-camera ${cameraStatus === 'granted' ? 'btn-camera-granted' : ''}`}
+                  onClick={handleGetCameraAccess}
+                  disabled={cameraStatus === 'requesting' || cameraStatus === 'granted'}
+                >
+                  {cameraStatus === 'requesting'
+                    ? 'Requesting access...'
+                    : cameraStatus === 'granted'
+                    ? 'Camera Access Granted'
+                    : 'Get Camera Access'}
                 </button>
+                {cameraStatus === 'granted' && (
+                  <p className="camera-status-msg status-success">Camera access granted</p>
+                )}
+                {cameraStatus === 'error' && (
+                  <p className="camera-status-msg status-error">{errorMessage}</p>
+                )}
               </div>
             </div>
 
