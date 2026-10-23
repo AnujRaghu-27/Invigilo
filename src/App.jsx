@@ -15,6 +15,16 @@ function App() {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+        try {
+          if (typeof videoRef.current.load === 'function') {
+            videoRef.current.load();
+          }
+        } catch {
+          // Ignore load errors
+        }
+      }
     };
   }, []);
 
@@ -28,6 +38,17 @@ function App() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+      try {
+        if (typeof videoRef.current.load === 'function') {
+          videoRef.current.load();
+        }
+      } catch {
+        // Ignore load errors
+      }
     }
 
     setCameraStatus('requesting');
@@ -54,6 +75,13 @@ function App() {
           setErrorMessage('Camera disconnected or access was revoked.');
           if (videoRef.current) {
             videoRef.current.srcObject = null;
+            try {
+              if (typeof videoRef.current.load === 'function') {
+                videoRef.current.load();
+              }
+            } catch {
+              // Ignore load errors
+            }
           }
           streamRef.current = null;
         };
@@ -80,10 +108,17 @@ function App() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = null;
+        try {
+          if (typeof videoRef.current.load === 'function') {
+            videoRef.current.load();
+          }
+        } catch {
+          // Ignore load errors
+        }
       }
 
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        setErrorMessage('Camera permission was denied. Please allow camera access to continue.');
+        setErrorMessage('Camera permission denied. Please allow camera access in your system settings and try again.');
       } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
         setErrorMessage('No camera found. Please connect a camera and try again.');
       } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
