@@ -4,9 +4,41 @@ import './App.css';
 function App() {
   const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+
+  // Subscribe to native fullscreen changes from Electron
+  useEffect(() => {
+    const subscribe =
+      window.electronAPI?.onFullScreenChange ||
+      window.electronAPI?.onFullscreenChange;
+
+    if (typeof subscribe === 'function') {
+      const unsubscribe = subscribe((fullscreen) => {
+        console.log("Fullscreen state changed:", fullscreen);
+        setIsFullscreen(fullscreen);
+      });
+      return () => {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      };
+    } else {
+      const handleBrowserFullscreenChange = () => {
+        setIsFullscreen(!!document.fullscreenElement);
+      };
+      document.addEventListener('fullscreenchange', handleBrowserFullscreenChange);
+      return () => {
+        document.removeEventListener('fullscreenchange', handleBrowserFullscreenChange);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    window.__isFullscreen = isFullscreen;
+  }, [isFullscreen]);
 
   // Clean up camera stream when component unmounts
   useEffect(() => {

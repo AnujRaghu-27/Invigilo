@@ -12,6 +12,19 @@ const createWindow = () => {
     },
   });
 
+  // Specifically detect native Electron fullscreen changes
+  mainWindow.on("enter-full-screen", () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("fullscreen-change", true);
+    }
+  });
+
+  mainWindow.on("leave-full-screen", () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("fullscreen-change", false);
+    }
+  });
+
   // Specifically handle camera permission requests
   session.defaultSession.setPermissionRequestHandler(
     (webContents, permission, callback, details) => {
