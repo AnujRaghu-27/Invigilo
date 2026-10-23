@@ -1,10 +1,12 @@
-const { app, BrowserWindow, session } = require("electron");
+const { app, BrowserWindow, session, ipcMain } = require("electron");
+const path = require("path");
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -38,6 +40,14 @@ const createWindow = () => {
 
   mainWindow.loadURL("http://localhost:5173");
 };
+
+// Handle fullscreen entry request securely from renderer
+ipcMain.handle("enter-fullscreen", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+  if (win) {
+    win.setFullScreen(true);
+  }
+});
 
 app.whenReady().then(() => {
   createWindow();

@@ -129,6 +129,18 @@ function App() {
     }
   };
 
+  const handleEnterFullScreen = async () => {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.enterFullScreen === 'function') {
+        await window.electronAPI.enterFullScreen();
+      } else if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (error) {
+      console.error('Failed to enter fullscreen:', error);
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Top-left Application Name */}
@@ -199,7 +211,11 @@ function App() {
               <p className="permission-description">
                 Kindly close all tabs and switch to full screen.
               </p>
-              <button type="button" className="btn-fullscreen">
+              <button
+                type="button"
+                className="btn-fullscreen"
+                onClick={handleEnterFullScreen}
+              >
                 Give Full Screen Permissions
               </button>
             </div>
