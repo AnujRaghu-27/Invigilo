@@ -5,6 +5,7 @@ function App() {
   const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenErrorMessage, setFullscreenErrorMessage] = useState('');
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -19,6 +20,9 @@ function App() {
       const unsubscribe = subscribe((fullscreen) => {
         console.log("Fullscreen state changed:", fullscreen);
         setIsFullscreen(fullscreen);
+        if (fullscreen) {
+          setFullscreenErrorMessage('');
+        }
       });
       return () => {
         if (typeof unsubscribe === 'function') {
@@ -162,6 +166,7 @@ function App() {
   };
 
   const handleEnterFullScreen = async () => {
+    setFullscreenErrorMessage('');
     try {
       if (window.electronAPI && typeof window.electronAPI.enterFullScreen === 'function') {
         await window.electronAPI.enterFullScreen();
@@ -173,24 +178,48 @@ function App() {
     }
   };
 
-  const handleGoToTest = () => {
+  const handleGoToTest = async () => {
+    // 1. Verify that Electron window is currently in fullscreen mode
+    let isCurrentlyFullscreen = false;
+    try {
+      if (window.electronAPI && typeof window.electronAPI.checkFullScreen === 'function') {
+        isCurrentlyFullscreen = await window.electronAPI.checkFullScreen();
+      } else if (window.electronAPI && typeof window.electronAPI.isFullScreen === 'function') {
+        isCurrentlyFullscreen = await window.electronAPI.isFullScreen();
+      } else {
+        isCurrentlyFullscreen = !!document.fullscreenElement;
+      }
+    } catch (error) {
+      console.error('Failed to check fullscreen state:', error);
+      isCurrentlyFullscreen = false;
+    }
+
+    if (!isCurrentlyFullscreen) {
+      setIsFullscreen(false);
+      setFullscreenErrorMessage('Please enable fullscreen mode before proceeding.');
+      return;
+    }
+
+    setFullscreenErrorMessage('');
+
+    // 2. Camera stream validation
     const stream = streamRef.current;
 
-    // 1. Check that the camera stream exists
+    // Check that the camera stream exists
     if (!stream) {
       setCameraStatus('error');
       setErrorMessage('Camera is no longer active. Please reconnect your camera and try again.');
       return;
     }
 
-    // 2. Check that the stream is active using stream.active
+    // Check that the stream is active using stream.active
     if (!stream.active) {
       setCameraStatus('error');
       setErrorMessage('Camera is no longer active. Please reconnect your camera and try again.');
       return;
     }
 
-    // 3. Check that at least one video track exists
+    // Check that at least one video track exists
     const videoTracks = stream.getVideoTracks();
     if (!videoTracks || videoTracks.length === 0) {
       setCameraStatus('error');
@@ -198,7 +227,7 @@ function App() {
       return;
     }
 
-    // 4. Check that the video track is still enabled and its readyState is "live"
+    // Check that the video track is still enabled and its readyState is "live"
     const videoTrack = videoTracks[0];
     if (!videoTrack.enabled || videoTrack.readyState !== 'live') {
       setCameraStatus('error');
@@ -207,7 +236,7 @@ function App() {
     }
 
     // Validation succeeded: confirm camera stream is valid
-    console.log('Camera stream validation successful. Ready for test.');
+    console.log('Camera and fullscreen validation successful. Ready for test.');
   };
 
   const isGoToTestDisabled = !(cameraStatus === 'granted' && isFullscreen && streamRef.current);
@@ -289,6 +318,9 @@ function App() {
               >
                 Give Full Screen Permissions
               </button>
+              {fullscreenErrorMessage && (
+                <p className="camera-status-msg status-error">{fullscreenErrorMessage}</p>
+              )}
             </div>
           </div>
         </div>
@@ -303,6 +335,9 @@ function App() {
           >
             Go To Test
           </button>
+          {fullscreenErrorMessage && (
+            <p className="camera-status-msg status-error">{fullscreenErrorMessage}</p>
+          )}
         </div>
       </div>
     </div>

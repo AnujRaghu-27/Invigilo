@@ -43,15 +43,6 @@ const createWindow = () => {
   mainWindow.on("leave-full-screen", () => {
     if (isQuitting) return;
 
-    if (!isAllowedToExit) {
-      setTimeout(() => {
-        if (!mainWindow.isDestroyed() && !isAllowedToExit && !isQuitting) {
-          mainWindow.setFullScreen(true);
-        }
-      }, 50);
-      return;
-    }
-
     if (process.platform === "darwin") {
       mainWindow.setWindowButtonVisibility(true);
     }
@@ -86,6 +77,11 @@ const createWindow = () => {
 
   mainWindow.loadURL("http://localhost:5173");
 };
+
+ipcMain.handle("check-fullscreen", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  return win ? win.isFullScreen() : false;
+});
 
 ipcMain.handle("enter-fullscreen", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
