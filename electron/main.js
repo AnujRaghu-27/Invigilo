@@ -2,23 +2,28 @@ const { app, BrowserWindow, session, ipcMain, Menu } = require("electron");
 const path = require("path");
 
 let mainWindow;
-let isTestSubmitted = false;
+let isAllowedToExit = false;
+let isQuitting = false;
 
-// Remove fullscreen toggle from macOS menus while allowing quit (Cmd+Q)
 const setupMenu = () => {
-  const template = [
-    {
-      label: app.name,
-      submenu: [{ role: "quit" }],
-    },
-  ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  if (process.platform === "darwin") {
+    const template = [
+      {
+        label: app.name,
+        submenu: [{ role: "quit" }],
+      },
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  } else {
+    Menu.setApplicationMenu(null);
+  }
 };
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -26,9 +31,7 @@ const createWindow = () => {
     },
   });
 
-  // Specifically detect native Electron fullscreen changes
   mainWindow.on("enter-full-screen", () => {
-    // Hide macOS window controls (traffic light buttons)
     if (process.platform === "darwin") {
       mainWindow.setWindowButtonVisibility(false);
     }
@@ -38,17 +41,17 @@ const createWindow = () => {
   });
 
   mainWindow.on("leave-full-screen", () => {
-    // If test is not submitted, prevent exiting by re-entering fullscreen
-    if (!isTestSubmitted) {
+    if (isQuitting) return;
+
+    if (!isAllowedToExit) {
       setTimeout(() => {
-        if (!mainWindow.isDestroyed() && !isTestSubmitted) {
+        if (!mainWindow.isDestroyed() && !isAllowedToExit && !isQuitting) {
           mainWindow.setFullScreen(true);
         }
       }, 50);
       return;
     }
 
-    // Restore window controls when exiting after test submission
     if (process.platform === "darwin") {
       mainWindow.setWindowButtonVisibility(true);
     }
@@ -57,7 +60,6 @@ const createWindow = () => {
     }
   });
 
-  // Specifically handle camera permission requests
   session.defaultSession.setPermissionRequestHandler(
     (webContents, permission, callback, details) => {
       if (
@@ -70,7 +72,6 @@ const createWindow = () => {
     }
   );
 
-  // Specifically check camera permission status
   session.defaultSession.setPermissionCheckHandler(
     (webContents, permission, requestingOrigin, details) => {
       if (
@@ -86,31 +87,24 @@ const createWindow = () => {
   mainWindow.loadURL("http://localhost:5173");
 };
 
-// Handle fullscreen entry request securely from renderer
 ipcMain.handle("enter-fullscreen", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   if (win) {
+    isAllowedToExit = false;
     win.setFullScreen(true);
   }
 });
 
-// Handle successful test submission (allows exiting fullscreen)
-ipcMain.handle("submit-test", (event) => {
-  isTestSubmitted = true;
+ipcMain.handle("exit-fullscreen", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   if (win) {
+    isAllowedToExit = true;
     win.setFullScreen(false);
   }
 });
 
-// Handle exiting fullscreen (only permitted after test submission)
-ipcMain.handle("exit-fullscreen", (event) => {
-  if (isTestSubmitted) {
-    const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
-    if (win) {
-      win.setFullScreen(false);
-    }
-  }
+app.on("before-quit", () => {
+  isQuitting = true;
 });
 
 app.whenReady().then(() => {
