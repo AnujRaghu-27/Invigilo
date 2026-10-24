@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
+import Instructions from './Instructions';
 import './App.css';
 
 function App() {
+  const [currentScreen, setCurrentScreen] = useState('permissions'); // 'permissions' | 'instructions'
   const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -235,8 +237,9 @@ function App() {
       return;
     }
 
-    // Validation succeeded: confirm camera stream is valid
+    // Validation succeeded: navigate to Instructions screen
     console.log('Camera and fullscreen validation successful. Ready for test.');
+    setCurrentScreen('instructions');
   };
 
   const isGoToTestDisabled = !(cameraStatus === 'granted' && isFullscreen && streamRef.current);
@@ -246,11 +249,14 @@ function App() {
       {/* Top-left Application Name */}
       <div className="app-brand">Invigilo</div>
 
-      {/* Main Content Area */}
-      <div className="main-content">
-        {/* Top Heading */}
-        <div className="heading-section">
-          <h2 className="heading-title">Hi User!</h2>
+      {currentScreen === 'instructions' ? (
+        <Instructions />
+      ) : (
+        /* Main Content Area */
+        <div className="main-content">
+          {/* Top Heading */}
+          <div className="heading-section">
+            <h2 className="heading-title">Hi User!</h2>
           <p className="heading-subtitle">
             Kindly Allow the following Permissions to Start the test:
           </p>
@@ -340,8 +346,9 @@ function App() {
           )}
         </div>
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 }
 
 export default App;
