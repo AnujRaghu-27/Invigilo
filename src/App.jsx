@@ -173,6 +173,45 @@ function App() {
     }
   };
 
+  const handleGoToTest = () => {
+    const stream = streamRef.current;
+
+    // 1. Check that the camera stream exists
+    if (!stream) {
+      setCameraStatus('error');
+      setErrorMessage('Camera is no longer active. Please reconnect your camera and try again.');
+      return;
+    }
+
+    // 2. Check that the stream is active using stream.active
+    if (!stream.active) {
+      setCameraStatus('error');
+      setErrorMessage('Camera is no longer active. Please reconnect your camera and try again.');
+      return;
+    }
+
+    // 3. Check that at least one video track exists
+    const videoTracks = stream.getVideoTracks();
+    if (!videoTracks || videoTracks.length === 0) {
+      setCameraStatus('error');
+      setErrorMessage('Camera is no longer active. Please reconnect your camera and try again.');
+      return;
+    }
+
+    // 4. Check that the video track is still enabled and its readyState is "live"
+    const videoTrack = videoTracks[0];
+    if (!videoTrack.enabled || videoTrack.readyState !== 'live') {
+      setCameraStatus('error');
+      setErrorMessage('Camera is no longer active. Please reconnect your camera and try again.');
+      return;
+    }
+
+    // Validation succeeded: confirm camera stream is valid
+    console.log('Camera stream validation successful. Ready for test.');
+  };
+
+  const isGoToTestDisabled = !(cameraStatus === 'granted' && isFullscreen && streamRef.current);
+
   return (
     <div className="app-container">
       {/* Top-left Application Name */}
@@ -256,7 +295,12 @@ function App() {
 
         {/* Go To Test Button (Centered Below Card) */}
         <div className="action-area">
-          <button type="button" className="btn-go-to-test">
+          <button
+            type="button"
+            className="btn-go-to-test"
+            onClick={handleGoToTest}
+            disabled={isGoToTestDisabled}
+          >
             Go To Test
           </button>
         </div>
