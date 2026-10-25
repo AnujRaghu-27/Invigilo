@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import Instructions from './Instructions';
+import SampleTest from './SampleTest';
 import './App.css';
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState('permissions'); // 'permissions' | 'instructions'
+  const [currentScreen, setCurrentScreen] = useState('permissions'); // 'permissions' | 'instructions' | 'test' | 'completed'
   const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -15,6 +16,7 @@ function App() {
   const streamRef = useRef(null);
   const captureIntervalRef = useRef(null);
   const isQuitConfirmedRef = useRef(false);
+  const isTestSubmittedRef = useRef(false);
   const isFullscreenTransitioningRef = useRef(false);
   const transitionTimeoutRef = useRef(null);
 
@@ -28,7 +30,7 @@ function App() {
   // Listen for quit attempts forwarded from Electron main process
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onQuitAttempt?.(() => {
-      if (isQuitConfirmedRef.current) return;
+      if (isQuitConfirmedRef.current || isTestSubmittedRef.current) return;
       setWarningType((prev) => {
         if (prev === 'quit-attempt' || prev === 'quit-confirm') {
           return prev;
@@ -58,7 +60,7 @@ function App() {
     let blurTimeout = null;
 
     const handleLeave = () => {
-      if (isQuitConfirmedRef.current) return;
+      if (isQuitConfirmedRef.current || isTestSubmittedRef.current) return;
       setIsTabVisible(false);
       setWarningType((prev) => (prev ? prev : 'tab-switch'));
     };
@@ -159,9 +161,45 @@ function App() {
     captureIntervalRef.current = setInterval(captureCameraFrame, 10000);
   };
 
-  const handleEndTest = () => {
-    clearInterval(captureIntervalRef.current);
-    setCurrentScreen('instructions');
+  const handleSubmitTest = async () => {
+    if (isTestSubmittedRef.current) return;
+    isTestSubmittedRef.current = true;
+
+    // 1. Mark test session as completed in Electron main process
+    if (window.electronAPI && typeof window.electronAPI.setTestActive === 'function') {
+      window.electronAPI.setTestActive(false);
+    }
+
+    // 2. Stop periodic screenshot capturing immediately and clear interval
+    if (captureIntervalRef.current) {
+      clearInterval(captureIntervalRef.current);
+      captureIntervalRef.current = null;
+    }
+
+    // 3. Clean up camera stream and video references
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    // 4. Release fullscreen via Electron IPC bridge
+    markFullscreenTransition(1500);
+    try {
+      if (window.electronAPI && typeof window.electronAPI.exitFullScreen === 'function') {
+        await window.electronAPI.exitFullScreen();
+      } else if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Failed to exit fullscreen:', error);
+    }
+    setIsFullscreen(false);
+
+    // 5. Navigate to completion screen
+    setCurrentScreen('completed');
   };
 
   const handleConfirmQuit = async () => {
@@ -512,18 +550,18 @@ function App() {
         </div>
       )}
 
-      {currentScreen === 'test' ? (
+      {currentScreen === 'completed' ? (
         <div className="main-content">
-          <div className="heading-section">
-            <h2 className="heading-title">Test in Progress</h2>
-            <p className="heading-subtitle">Camera monitoring is active.</p>
-          </div>
-          <div className="action-area">
-            <button type="button" className="btn-start-test" onClick={handleEndTest}>
-              End Test
-            </button>
+          <div className="completion-card">
+            <div className="completion-icon">✓</div>
+            <h2 className="completion-title">Test Submitted Successfully!</h2>
+            <p className="completion-message">
+              Your test has been submitted. You may now close Invigilo.
+            </p>
           </div>
         </div>
+      ) : currentScreen === 'test' ? (
+        <SampleTest onSubmit={handleSubmitTest} />
       ) : currentScreen === 'instructions' ? (
         <Instructions onStartTest={handleStartTest} />
       ) : (
