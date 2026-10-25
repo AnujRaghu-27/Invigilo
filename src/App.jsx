@@ -3,7 +3,7 @@ import Instructions from './Instructions';
 import './App.css';
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState('permissions'); // 'permissions' | 'instructions'
+  const [currentScreen, setCurrentScreen] = useState('permissions'); // 'permissions' | 'instructions' | 'test' | 'completed'
   const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -138,6 +138,33 @@ function App() {
     setWarningType('quit-attempt');
   };
 
+  const handleStartTest = async () => {
+    const sessionId = `session_${Date.now()}`;
+    setCurrentScreen('test');
+    if (window.electronAPI && typeof window.electronAPI.startScreenCapture === 'function') {
+      try {
+        await window.electronAPI.startScreenCapture({ sessionId });
+      } catch (err) {
+        console.error('Failed to start screenshot capturing:', err);
+      }
+    }
+  };
+
+  const handleEndTest = async () => {
+    if (window.electronAPI && typeof window.electronAPI.stopScreenCapture === 'function') {
+      try {
+        await window.electronAPI.stopScreenCapture();
+      } catch (err) {
+        console.error('Failed to stop screenshot capturing:', err);
+      }
+    }
+    setCurrentScreen('completed');
+  };
+
+  const handleRestartTest = () => {
+    setCurrentScreen('instructions');
+  };
+
   const handleConfirmQuit = async () => {
     isQuitConfirmedRef.current = true;
     if (streamRef.current) {
@@ -149,6 +176,9 @@ function App() {
     }
 
     try {
+      if (window.electronAPI && typeof window.electronAPI.stopScreenCapture === 'function') {
+        await window.electronAPI.stopScreenCapture();
+      }
       if (window.electronAPI && typeof window.electronAPI.confirmQuit === 'function') {
         await window.electronAPI.confirmQuit();
       }
@@ -484,8 +514,62 @@ function App() {
         </div>
       )}
 
-      {currentScreen === 'instructions' ? (
-        <Instructions />
+      {currentScreen === 'test' ? (
+        <div className="main-content">
+          <div className="heading-section">
+            <h2 className="heading-title">Test In Progress</h2>
+            <p className="heading-subtitle">
+              Your test session is active. Periodic screenshot capturing and proctoring are currently running.
+            </p>
+          </div>
+          <div className="test-active-card">
+            <div className="test-active-info">
+              <div className="proctoring-status-badge">
+                <span className="proctoring-status-dot"></span>
+                <span>Proctoring Active (Screenshots captured every 10s)</span>
+              </div>
+              <p className="test-active-desc">
+                Please remain in Invigilo and answer all test questions. Leaving this window or closing the application violates examination rules.
+              </p>
+            </div>
+            <div className="action-area">
+              <button
+                type="button"
+                className="btn-end-test"
+                onClick={handleEndTest}
+              >
+                End Test
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : currentScreen === 'completed' ? (
+        <div className="main-content">
+          <div className="heading-section">
+            <h2 className="heading-title">Test Completed</h2>
+            <p className="heading-subtitle">
+              Your test has been completed and submitted. Screenshot capturing has stopped.
+            </p>
+          </div>
+          <div className="test-active-card">
+            <div className="test-active-info">
+              <p className="test-active-desc">
+                Thank you for taking your exam with Invigilo. You may now safely exit the application, or start another session if needed.
+              </p>
+            </div>
+            <div className="action-area">
+              <button
+                type="button"
+                className="btn-restart-test"
+                onClick={handleRestartTest}
+              >
+                Start Another Test
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : currentScreen === 'instructions' ? (
+        <Instructions onStartTest={handleStartTest} />
       ) : (
         /* Main Content Area */
         <div className="main-content">
