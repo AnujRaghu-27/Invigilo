@@ -9,27 +9,52 @@ function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenErrorMessage, setFullscreenErrorMessage] = useState('');
   const [isTabVisible, setIsTabVisible] = useState(true);
+  const [showWarning, setShowWarning] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Simple tab-switching detection using visibilitychange
+  // Tab visibility and app-focus detection
   useEffect(() => {
+    const handleLeave = () => {
+      setIsTabVisible(false);
+      setShowWarning(true);
+    };
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setIsTabVisible(false);
         console.log('Tab is hidden');
+        handleLeave();
       } else {
         setIsTabVisible(true);
         console.log('Tab is visible');
       }
     };
 
+    const handleBlur = () => {
+      console.log('App window lost focus');
+      handleLeave();
+    };
+
+    const handleFocus = () => {
+      console.log('App window gained focus');
+      setIsTabVisible(true);
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
     };
   }, []);
+
+  const handleDismissWarning = () => {
+    setShowWarning(false);
+  };
 
   // Subscribe to native fullscreen changes from Electron
   useEffect(() => {
@@ -267,6 +292,25 @@ function App() {
     <div className="app-container">
       {/* Top-left Application Name */}
       <div className="app-brand">Invigilo</div>
+
+      {/* Tab-Switching Warning Modal */}
+      {showWarning && (
+        <div className="modal-overlay">
+          <div className="warning-modal" role="dialog" aria-modal="true">
+            <div className="warning-modal-icon">⚠️</div>
+            <p className="warning-modal-message">
+              Warning: You have left the test window. Please stay on Invigilo throughout the test.
+            </p>
+            <button
+              type="button"
+              className="btn-warning-dismiss"
+              onClick={handleDismissWarning}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
       {currentScreen === 'instructions' ? (
         <Instructions />
