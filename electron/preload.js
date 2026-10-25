@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     };
   },
   setTestActive: (isActive) => ipcRenderer.send("set-test-active", isActive),
+  confirmQuit: () => ipcRenderer.invoke("confirm-quit"),
   onQuitAttempt: (callback) => {
     const subscription = () => callback();
     ipcRenderer.on("quit-attempt", subscription);

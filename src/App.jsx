@@ -9,10 +9,11 @@ function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenErrorMessage, setFullscreenErrorMessage] = useState('');
   const [isTabVisible, setIsTabVisible] = useState(true);
-  const [warningType, setWarningType] = useState(null); // null | 'tab-switch' | 'quit-attempt'
+  const [warningType, setWarningType] = useState(null); // null | 'tab-switch' | 'quit-attempt' | 'quit-confirm'
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const isQuitConfirmedRef = useRef(false);
   const isFullscreenTransitioningRef = useRef(false);
   const transitionTimeoutRef = useRef(null);
 
@@ -26,7 +27,13 @@ function App() {
   // Listen for quit attempts forwarded from Electron main process
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onQuitAttempt?.(() => {
-      setWarningType('quit-attempt');
+      if (isQuitConfirmedRef.current) return;
+      setWarningType((prev) => {
+        if (prev === 'quit-attempt' || prev === 'quit-confirm') {
+          return prev;
+        }
+        return 'quit-attempt';
+      });
     });
     return () => {
       if (typeof unsubscribe === 'function') {
@@ -50,6 +57,7 @@ function App() {
     let blurTimeout = null;
 
     const handleLeave = () => {
+      if (isQuitConfirmedRef.current) return;
       setIsTabVisible(false);
       setWarningType((prev) => (prev ? prev : 'tab-switch'));
     };
@@ -116,6 +124,37 @@ function App() {
 
   const handleDismissWarning = () => {
     setWarningType(null);
+  };
+
+  const handleContinueTest = () => {
+    setWarningType(null);
+  };
+
+  const handleQuitTest = () => {
+    setWarningType('quit-confirm');
+  };
+
+  const handleGoBack = () => {
+    setWarningType('quit-attempt');
+  };
+
+  const handleConfirmQuit = async () => {
+    isQuitConfirmedRef.current = true;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    try {
+      if (window.electronAPI && typeof window.electronAPI.confirmQuit === 'function') {
+        await window.electronAPI.confirmQuit();
+      }
+    } catch (error) {
+      console.error('Failed to confirm quit:', error);
+    }
   };
 
   // Subscribe to native fullscreen changes and transitions from Electron
@@ -370,15 +409,13 @@ function App() {
       {/* Top-left Application Name */}
       <div className="app-brand">Invigilo</div>
 
-      {/* Warning Modal (Tab-Switching & Quit-Attempt) */}
-      {warningType && (
+      {/* Warning Modal (Tab-Switching) */}
+      {warningType === 'tab-switch' && (
         <div className="modal-overlay">
           <div className="warning-modal" role="alertdialog" aria-modal="true">
             <h3 className="warning-modal-title">Test Rule Violation</h3>
             <p className="warning-modal-message">
-              {warningType === 'quit-attempt'
-                ? 'Attempting to close or quit Invigilo during the test violates the test rules. Please remain in the application until you complete the test.'
-                : 'You have switched away from Invigilo. Leaving the test window violates the test rules. Please remain in Invigilo until you complete the test.'}
+              You have switched away from Invigilo. Leaving the test window violates the test rules. Please remain in Invigilo until you complete the test.
             </p>
             <button
               type="button"
@@ -387,6 +424,62 @@ function App() {
             >
               OK
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quit Warning Modal - Step 1 */}
+      {warningType === 'quit-attempt' && (
+        <div className="modal-overlay">
+          <div className="warning-modal" role="alertdialog" aria-modal="true">
+            <h3 className="warning-modal-title">Leaving the Test?</h3>
+            <p className="warning-modal-message">
+              Leaving the test may violate examination rules. If you're experiencing a technical issue, you can exit and contact your invigilator.
+            </p>
+            <div className="modal-button-group">
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={handleContinueTest}
+              >
+                Continue Test
+              </button>
+              <button
+                type="button"
+                className="btn-modal-secondary"
+                onClick={handleQuitTest}
+              >
+                Quit Test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quit Confirmation Modal - Step 2 */}
+      {warningType === 'quit-confirm' && (
+        <div className="modal-overlay">
+          <div className="warning-modal" role="alertdialog" aria-modal="true">
+            <h3 className="warning-modal-title">Before You Quit</h3>
+            <p className="warning-modal-message">
+              Please inform your invigilator before leaving the test. You should quit only when your invigilator is present and watching you.
+            </p>
+            <div className="modal-button-group">
+              <button
+                type="button"
+                className="btn-modal-secondary"
+                onClick={handleGoBack}
+              >
+                Go Back
+              </button>
+              <button
+                type="button"
+                className="btn-modal-primary"
+                onClick={handleConfirmQuit}
+              >
+                Confirm Quit
+              </button>
+            </div>
           </div>
         </div>
       )}

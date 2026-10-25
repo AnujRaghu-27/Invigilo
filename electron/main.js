@@ -136,8 +136,20 @@ ipcMain.on("set-test-active", (_event, active) => {
   isTestActive = !!active;
 });
 
+const handleConfirmQuit = () => {
+  isQuitting = true;
+  isTestActive = false;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.close();
+  }
+  app.quit();
+};
+
+ipcMain.handle("confirm-quit", handleConfirmQuit);
+ipcMain.on("confirm-quit", handleConfirmQuit);
+
 app.on("before-quit", (event) => {
-  if (isTestActive) {
+  if (isTestActive && !isQuitting) {
     event.preventDefault();
     console.log("Quit attempt detected: User attempted to quit Invigilo.");
     if (mainWindow && !mainWindow.isDestroyed()) {
