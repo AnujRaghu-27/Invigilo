@@ -462,7 +462,7 @@ function App() {
           <div className="warning-modal" role="alertdialog" aria-modal="true">
             <h3 className="warning-modal-title">Before You Quit</h3>
             <p className="warning-modal-message">
-              Please inform your invigilator before leaving the test. You should quit only when your invigilator is present and watching you.
+              Please inform your invigilator before leaving the test. You may quit only when your invigilator is present and watching you. If you quit without informing the invigilator, you will be marked as UFM (Unfair Means). Only the invigilator has the authority to review the situation and mark your exit as a safe quit.
             </p>
             <div className="modal-button-group">
               <button

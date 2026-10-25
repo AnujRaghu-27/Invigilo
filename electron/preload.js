@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
   setTestActive: (isActive) => ipcRenderer.send("set-test-active", isActive),
   confirmQuit: () => ipcRenderer.invoke("confirm-quit"),
+  adminUpdateStatus: (payload) => ipcRenderer.invoke("admin:update-status", payload),
+  adminGetRecords: (payload) => ipcRenderer.invoke("admin:get-records", payload),
   onQuitAttempt: (callback) => {
     const subscription = () => callback();
     ipcRenderer.on("quit-attempt", subscription);

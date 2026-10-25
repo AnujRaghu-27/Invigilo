@@ -8,6 +8,7 @@
     "dev": "vite",
     "electron": "electron .",
     "build": "vite build",
+    "admin:review": "node scripts/admin-manager.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

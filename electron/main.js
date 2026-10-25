@@ -1,10 +1,12 @@
 const { app, BrowserWindow, session, ipcMain, Menu } = require("electron");
 const path = require("path");
+const quitRecordsStore = require("./quitRecords");
 
 let mainWindow;
 let isAllowedToExit = false;
 let isQuitting = false;
 let isTestActive = true;
+let isQuitRecorded = false;
 
 const setupMenu = () => {
   if (process.platform === "darwin") {
@@ -137,6 +139,17 @@ ipcMain.on("set-test-active", (_event, active) => {
 });
 
 const handleConfirmQuit = () => {
+  if (!isQuitRecorded) {
+    isQuitRecorded = true;
+    try {
+      quitRecordsStore.recordQuitAttempt({
+        studentId: "student_user",
+      });
+    } catch (err) {
+      console.error("Failed to record quit attempt:", err);
+    }
+  }
+
   isQuitting = true;
   isTestActive = false;
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -147,6 +160,24 @@ const handleConfirmQuit = () => {
 
 ipcMain.handle("confirm-quit", handleConfirmQuit);
 ipcMain.on("confirm-quit", handleConfirmQuit);
+
+ipcMain.handle("admin:update-status", async (_event, payload) => {
+  try {
+    const updated = quitRecordsStore.updateRecordStatus(payload || {});
+    return { success: true, record: updated };
+  } catch (err) {
+    return { success: false, error: err.message, code: err.code || "ERROR" };
+  }
+});
+
+ipcMain.handle("admin:get-records", async (_event, payload) => {
+  try {
+    const records = quitRecordsStore.getRecords(payload?.adminSecret);
+    return { success: true, records };
+  } catch (err) {
+    return { success: false, error: err.message, code: err.code || "ERROR" };
+  }
+});
 
 app.on("before-quit", (event) => {
   if (isTestActive && !isQuitting) {
