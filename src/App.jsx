@@ -3,7 +3,7 @@ import Instructions from './Instructions';
 import './App.css';
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState('permissions'); // 'permissions' | 'instructions' | 'test' | 'completed'
+  const [currentScreen, setCurrentScreen] = useState('permissions'); // 'permissions' | 'instructions'
   const [cameraStatus, setCameraStatus] = useState('idle'); // 'idle' | 'requesting' | 'granted' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -13,6 +13,7 @@ function App() {
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const captureIntervalRef = useRef(null);
   const isQuitConfirmedRef = useRef(false);
   const isFullscreenTransitioningRef = useRef(false);
   const transitionTimeoutRef = useRef(null);
@@ -138,34 +139,33 @@ function App() {
     setWarningType('quit-attempt');
   };
 
-  const handleStartTest = async () => {
-    const sessionId = `session_${Date.now()}`;
+  const captureCameraFrame = async () => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      const blob = await new ImageCapture(track).takePhoto();
+      window.electronAPI?.saveCameraFrame?.(await blob.arrayBuffer());
+    } catch {
+      const bmp = await new ImageCapture(track).grabFrame();
+      const canvas = Object.assign(document.createElement('canvas'), { width: bmp.width, height: bmp.height });
+      canvas.getContext('2d').drawImage(bmp, 0, 0);
+      canvas.toBlob(async (b) => window.electronAPI?.saveCameraFrame?.(await b.arrayBuffer()), 'image/jpeg');
+    }
+  };
+
+  const handleStartTest = () => {
     setCurrentScreen('test');
-    if (window.electronAPI && typeof window.electronAPI.startScreenCapture === 'function') {
-      try {
-        await window.electronAPI.startScreenCapture({ sessionId });
-      } catch (err) {
-        console.error('Failed to start screenshot capturing:', err);
-      }
-    }
+    captureCameraFrame();
+    captureIntervalRef.current = setInterval(captureCameraFrame, 10000);
   };
 
-  const handleEndTest = async () => {
-    if (window.electronAPI && typeof window.electronAPI.stopScreenCapture === 'function') {
-      try {
-        await window.electronAPI.stopScreenCapture();
-      } catch (err) {
-        console.error('Failed to stop screenshot capturing:', err);
-      }
-    }
-    setCurrentScreen('completed');
-  };
-
-  const handleRestartTest = () => {
+  const handleEndTest = () => {
+    clearInterval(captureIntervalRef.current);
     setCurrentScreen('instructions');
   };
 
   const handleConfirmQuit = async () => {
+    clearInterval(captureIntervalRef.current);
     isQuitConfirmedRef.current = true;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -176,9 +176,6 @@ function App() {
     }
 
     try {
-      if (window.electronAPI && typeof window.electronAPI.stopScreenCapture === 'function') {
-        await window.electronAPI.stopScreenCapture();
-      }
       if (window.electronAPI && typeof window.electronAPI.confirmQuit === 'function') {
         await window.electronAPI.confirmQuit();
       }
@@ -237,6 +234,7 @@ function App() {
   // Clean up camera stream when component unmounts
   useEffect(() => {
     return () => {
+      clearInterval(captureIntervalRef.current);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
@@ -517,55 +515,13 @@ function App() {
       {currentScreen === 'test' ? (
         <div className="main-content">
           <div className="heading-section">
-            <h2 className="heading-title">Test In Progress</h2>
-            <p className="heading-subtitle">
-              Your test session is active. Periodic screenshot capturing and proctoring are currently running.
-            </p>
+            <h2 className="heading-title">Test in Progress</h2>
+            <p className="heading-subtitle">Camera monitoring is active.</p>
           </div>
-          <div className="test-active-card">
-            <div className="test-active-info">
-              <div className="proctoring-status-badge">
-                <span className="proctoring-status-dot"></span>
-                <span>Proctoring Active (Screenshots captured every 10s)</span>
-              </div>
-              <p className="test-active-desc">
-                Please remain in Invigilo and answer all test questions. Leaving this window or closing the application violates examination rules.
-              </p>
-            </div>
-            <div className="action-area">
-              <button
-                type="button"
-                className="btn-end-test"
-                onClick={handleEndTest}
-              >
-                End Test
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : currentScreen === 'completed' ? (
-        <div className="main-content">
-          <div className="heading-section">
-            <h2 className="heading-title">Test Completed</h2>
-            <p className="heading-subtitle">
-              Your test has been completed and submitted. Screenshot capturing has stopped.
-            </p>
-          </div>
-          <div className="test-active-card">
-            <div className="test-active-info">
-              <p className="test-active-desc">
-                Thank you for taking your exam with Invigilo. You may now safely exit the application, or start another session if needed.
-              </p>
-            </div>
-            <div className="action-area">
-              <button
-                type="button"
-                className="btn-restart-test"
-                onClick={handleRestartTest}
-              >
-                Start Another Test
-              </button>
-            </div>
+          <div className="action-area">
+            <button type="button" className="btn-start-test" onClick={handleEndTest}>
+              End Test
+            </button>
           </div>
         </div>
       ) : currentScreen === 'instructions' ? (

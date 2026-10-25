@@ -1,7 +1,7 @@
 const { app, BrowserWindow, session, ipcMain, Menu } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const quitRecordsStore = require("./quitRecords");
-const screenshotManager = require("./screenshotManager");
 
 let mainWindow;
 let isAllowedToExit = false;
@@ -33,13 +33,6 @@ const createWindow = () => {
       contextIsolation: true,
       nodeIntegration: false,
     },
-  });
-
-  screenshotManager.setMainWindow(mainWindow);
-
-  mainWindow.on("closed", () => {
-    screenshotManager.stopCapture();
-    mainWindow = null;
   });
 
   mainWindow.on("will-enter-full-screen", () => {
@@ -160,7 +153,6 @@ const handleConfirmQuit = () => {
 
   isQuitting = true;
   isTestActive = false;
-  screenshotManager.stopCapture();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.close();
   }
@@ -170,16 +162,10 @@ const handleConfirmQuit = () => {
 ipcMain.handle("confirm-quit", handleConfirmQuit);
 ipcMain.on("confirm-quit", handleConfirmQuit);
 
-ipcMain.handle("start-screen-capture", (_event, options) => {
-  return screenshotManager.startCapture(options?.sessionId);
-});
-
-ipcMain.handle("stop-screen-capture", () => {
-  return screenshotManager.stopCapture();
-});
-
-ipcMain.handle("get-screenshot-info", () => {
-  return screenshotManager.getInfo();
+ipcMain.handle("save-camera-frame", (_event, buffer) => {
+  const dir = path.join(__dirname, "../screenshots");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, `camera_${Date.now()}.jpg`), Buffer.from(buffer));
 });
 
 ipcMain.handle("admin:update-status", async (_event, payload) => {
@@ -212,7 +198,6 @@ app.on("before-quit", (event) => {
   }
 
   isQuitting = true;
-  screenshotManager.stopCapture();
   console.log("Quit attempt detected: User attempted to quit Invigilo.");
 });
 

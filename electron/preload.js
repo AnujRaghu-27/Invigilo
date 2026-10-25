@@ -21,9 +21,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
   setTestActive: (isActive) => ipcRenderer.send("set-test-active", isActive),
   confirmQuit: () => ipcRenderer.invoke("confirm-quit"),
-  startScreenCapture: (options) => ipcRenderer.invoke("start-screen-capture", options),
-  stopScreenCapture: () => ipcRenderer.invoke("stop-screen-capture"),
-  getScreenshotInfo: () => ipcRenderer.invoke("get-screenshot-info"),
+  saveCameraFrame: (buf) => ipcRenderer.invoke("save-camera-frame", buf),
   adminUpdateStatus: (payload) => ipcRenderer.invoke("admin:update-status", payload),
   adminGetRecords: (payload) => ipcRenderer.invoke("admin:get-records", payload),
   onQuitAttempt: (callback) => {

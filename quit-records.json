@@ -1,1 +1,50 @@
-[]
+[
+  {
+    "studentId": "student_user",
+    "timestamp": "2026-10-25T15:22:28.039Z",
+    "status": "UFM",
+    "adminReview": null
+  },
+  {
+    "studentId": "student_user",
+    "timestamp": "2026-10-25T16:03:52.866Z",
+    "status": "UFM",
+    "adminReview": null
+  },
+  {
+    "studentId": "student_user",
+    "timestamp": "2026-10-25T16:13:47.218Z",
+    "status": "UFM",
+    "adminReview": null
+  },
+  {
+    "studentId": "student_user",
+    "timestamp": "2026-10-25T16:19:25.615Z",
+    "status": "UFM",
+    "adminReview": null
+  },
+  {
+    "studentId": "student_user",
+    "timestamp": "2026-10-25T16:21:22.832Z",
+    "status": "UFM",
+    "adminReview": null
+  },
+  {
+    "studentId": "student_user",
+    "timestamp": "2026-10-25T16:24:05.379Z",
+    "status": "UFM",
+    "adminReview": null
+  },
+  {
+    "studentId": "student_user",
+    "timestamp": "2026-10-25T16:33:58.748Z",
+    "status": "UFM",
+    "adminReview": null
+  },
+  {
+    "studentId": "student_user",
+    "timestamp": "2026-10-25T16:45:42.114Z",
+    "status": "UFM",
+    "adminReview": null
+  }
+]
