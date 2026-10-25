@@ -65,6 +65,12 @@ const createWindow = () => {
     }
   });
 
+  mainWindow.on("close", () => {
+    if (!isQuitting) {
+      console.log("Quit attempt detected: User attempted to close the window.");
+    }
+  });
+
   session.defaultSession.setPermissionRequestHandler(
     (webContents, permission, callback, details) => {
       if (
@@ -117,6 +123,7 @@ ipcMain.handle("exit-fullscreen", (event) => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  console.log("Quit attempt detected: User attempted to quit Invigilo.");
 });
 
 app.whenReady().then(() => {

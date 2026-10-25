@@ -13,8 +13,6 @@ function App() {
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const wasFullscreenRef = useRef(false);
-  const currentScreenRef = useRef(currentScreen);
   const isFullscreenTransitioningRef = useRef(false);
   const transitionTimeoutRef = useRef(null);
 
@@ -28,27 +26,6 @@ function App() {
     }, durationMs);
   };
 
-  useEffect(() => {
-    currentScreenRef.current = currentScreen;
-  }, [currentScreen]);
-
-  const restoreFullScreen = async () => {
-    try {
-      if (window.electronAPI && typeof window.electronAPI.checkFullScreen === 'function') {
-        const isFs = await window.electronAPI.checkFullScreen();
-        if (!isFs) {
-          markFullscreenTransition(1500);
-          await window.electronAPI.enterFullScreen();
-        }
-      } else if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        markFullscreenTransition(1500);
-        await document.documentElement.requestFullscreen().catch(() => {});
-      }
-    } catch (err) {
-      console.error('Failed to restore fullscreen:', err);
-    }
-  };
-
   // Tab visibility and app-focus detection
   useEffect(() => {
     let blurTimeout = null;
@@ -60,9 +37,6 @@ function App() {
 
     const handleReturn = () => {
       setIsTabVisible(true);
-      if (!isFullscreenTransitioningRef.current && (currentScreenRef.current === 'instructions' || wasFullscreenRef.current)) {
-        restoreFullScreen();
-      }
     };
 
     const handleVisibilityChange = () => {
@@ -123,9 +97,6 @@ function App() {
 
   const handleDismissWarning = () => {
     setShowWarning(false);
-    if (currentScreen === 'instructions' || wasFullscreenRef.current) {
-      restoreFullScreen();
-    }
   };
 
   // Subscribe to native fullscreen changes and transitions from Electron
@@ -172,9 +143,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (isFullscreen) {
-      wasFullscreenRef.current = true;
-    }
     window.__isFullscreen = isFullscreen;
   }, [isFullscreen]);
 
