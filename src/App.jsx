@@ -9,12 +9,31 @@ function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenErrorMessage, setFullscreenErrorMessage] = useState('');
   const [isTabVisible, setIsTabVisible] = useState(true);
-  const [showWarning, setShowWarning] = useState(false);
+  const [warningType, setWarningType] = useState(null); // null | 'tab-switch' | 'quit-attempt'
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const isFullscreenTransitioningRef = useRef(false);
   const transitionTimeoutRef = useRef(null);
+
+  // Notify Electron main process that test is active
+  useEffect(() => {
+    if (window.electronAPI && typeof window.electronAPI.setTestActive === 'function') {
+      window.electronAPI.setTestActive(true);
+    }
+  }, []);
+
+  // Listen for quit attempts forwarded from Electron main process
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onQuitAttempt?.(() => {
+      setWarningType('quit-attempt');
+    });
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
 
   const markFullscreenTransition = (durationMs = 1500) => {
     isFullscreenTransitioningRef.current = true;
@@ -32,7 +51,7 @@ function App() {
 
     const handleLeave = () => {
       setIsTabVisible(false);
-      setShowWarning(true);
+      setWarningType((prev) => (prev ? prev : 'tab-switch'));
     };
 
     const handleReturn = () => {
@@ -96,7 +115,7 @@ function App() {
   }, []);
 
   const handleDismissWarning = () => {
-    setShowWarning(false);
+    setWarningType(null);
   };
 
   // Subscribe to native fullscreen changes and transitions from Electron
@@ -351,13 +370,15 @@ function App() {
       {/* Top-left Application Name */}
       <div className="app-brand">Invigilo</div>
 
-      {/* Tab-Switching Warning Modal */}
-      {showWarning && (
+      {/* Warning Modal (Tab-Switching & Quit-Attempt) */}
+      {warningType && (
         <div className="modal-overlay">
-          <div className="warning-modal" role="dialog" aria-modal="true">
-            <div className="warning-modal-icon">⚠️</div>
+          <div className="warning-modal" role="alertdialog" aria-modal="true">
+            <h3 className="warning-modal-title">Test Rule Violation</h3>
             <p className="warning-modal-message">
-              Warning: You have left the test window. Please stay on Invigilo throughout the test.
+              {warningType === 'quit-attempt'
+                ? 'Attempting to close or quit Invigilo during the test violates the test rules. Please remain in the application until you complete the test.'
+                : 'You have switched away from Invigilo. Leaving the test window violates the test rules. Please remain in Invigilo until you complete the test.'}
             </p>
             <button
               type="button"

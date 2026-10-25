@@ -4,6 +4,7 @@ const path = require("path");
 let mainWindow;
 let isAllowedToExit = false;
 let isQuitting = false;
+let isTestActive = true;
 
 const setupMenu = () => {
   if (process.platform === "darwin") {
@@ -65,7 +66,17 @@ const createWindow = () => {
     }
   });
 
-  mainWindow.on("close", () => {
+  mainWindow.on("close", (event) => {
+    if (isTestActive && !isQuitting) {
+      event.preventDefault();
+      console.log("Quit attempt detected: User attempted to close the window.");
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("quit-attempt");
+        mainWindow.focus();
+      }
+      return;
+    }
+
     if (!isQuitting) {
       console.log("Quit attempt detected: User attempted to close the window.");
     }
@@ -121,7 +132,21 @@ ipcMain.handle("exit-fullscreen", (event) => {
   }
 });
 
-app.on("before-quit", () => {
+ipcMain.on("set-test-active", (_event, active) => {
+  isTestActive = !!active;
+});
+
+app.on("before-quit", (event) => {
+  if (isTestActive) {
+    event.preventDefault();
+    console.log("Quit attempt detected: User attempted to quit Invigilo.");
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("quit-attempt");
+      mainWindow.focus();
+    }
+    return;
+  }
+
   isQuitting = true;
   console.log("Quit attempt detected: User attempted to quit Invigilo.");
 });

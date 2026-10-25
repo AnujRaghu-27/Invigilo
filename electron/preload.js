@@ -19,4 +19,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.removeListener("fullscreen-transition", subscription);
     };
   },
+  setTestActive: (isActive) => ipcRenderer.send("set-test-active", isActive),
+  onQuitAttempt: (callback) => {
+    const subscription = () => callback();
+    ipcRenderer.on("quit-attempt", subscription);
+    return () => {
+      ipcRenderer.removeListener("quit-attempt", subscription);
+    };
+  },
 });
