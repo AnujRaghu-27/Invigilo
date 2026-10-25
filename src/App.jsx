@@ -8,9 +8,28 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenErrorMessage, setFullscreenErrorMessage] = useState('');
+  const [isTabVisible, setIsTabVisible] = useState(true);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+
+  // Simple tab-switching detection using visibilitychange
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsTabVisible(false);
+        console.log('Tab is hidden');
+      } else {
+        setIsTabVisible(true);
+        console.log('Tab is visible');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Subscribe to native fullscreen changes from Electron
   useEffect(() => {
