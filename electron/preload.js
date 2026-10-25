@@ -12,4 +12,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.removeListener("fullscreen-change", subscription);
     };
   },
+  onFullScreenTransition: (callback) => {
+    const subscription = (_event, isTransitioning) => callback(isTransitioning);
+    ipcRenderer.on("fullscreen-transition", subscription);
+    return () => {
+      ipcRenderer.removeListener("fullscreen-transition", subscription);
+    };
+  },
 });

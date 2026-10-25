@@ -13,32 +13,98 @@ function App() {
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const wasFullscreenRef = useRef(false);
+  const currentScreenRef = useRef(currentScreen);
+  const isFullscreenTransitioningRef = useRef(false);
+  const transitionTimeoutRef = useRef(null);
+
+  const markFullscreenTransition = (durationMs = 1500) => {
+    isFullscreenTransitioningRef.current = true;
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+    }
+    transitionTimeoutRef.current = setTimeout(() => {
+      isFullscreenTransitioningRef.current = false;
+    }, durationMs);
+  };
+
+  useEffect(() => {
+    currentScreenRef.current = currentScreen;
+  }, [currentScreen]);
+
+  const restoreFullScreen = async () => {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.checkFullScreen === 'function') {
+        const isFs = await window.electronAPI.checkFullScreen();
+        if (!isFs) {
+          markFullscreenTransition(1500);
+          await window.electronAPI.enterFullScreen();
+        }
+      } else if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        markFullscreenTransition(1500);
+        await document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (err) {
+      console.error('Failed to restore fullscreen:', err);
+    }
+  };
 
   // Tab visibility and app-focus detection
   useEffect(() => {
+    let blurTimeout = null;
+
     const handleLeave = () => {
       setIsTabVisible(false);
       setShowWarning(true);
     };
 
+    const handleReturn = () => {
+      setIsTabVisible(true);
+      if (!isFullscreenTransitioningRef.current && (currentScreenRef.current === 'instructions' || wasFullscreenRef.current)) {
+        restoreFullScreen();
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        if (isFullscreenTransitioningRef.current) {
+          console.log('Ignored visibilitychange during fullscreen transition');
+          return;
+        }
         console.log('Tab is hidden');
         handleLeave();
       } else {
-        setIsTabVisible(true);
         console.log('Tab is visible');
+        handleReturn();
       }
     };
 
     const handleBlur = () => {
-      console.log('App window lost focus');
-      handleLeave();
+      if (isFullscreenTransitioningRef.current) {
+        console.log('Ignored blur during fullscreen transition');
+        return;
+      }
+
+      if (blurTimeout) {
+        clearTimeout(blurTimeout);
+      }
+
+      // 150ms verification to ensure window genuinely lost focus (not a transient macOS transition flicker)
+      blurTimeout = setTimeout(() => {
+        if (!document.hasFocus() && !isFullscreenTransitioningRef.current) {
+          console.log('App window lost focus');
+          handleLeave();
+        }
+      }, 150);
     };
 
     const handleFocus = () => {
+      if (blurTimeout) {
+        clearTimeout(blurTimeout);
+        blurTimeout = null;
+      }
       console.log('App window gained focus');
-      setIsTabVisible(true);
+      handleReturn();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -46,6 +112,9 @@ function App() {
     window.addEventListener('focus', handleFocus);
 
     return () => {
+      if (blurTimeout) {
+        clearTimeout(blurTimeout);
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
@@ -54,17 +123,29 @@ function App() {
 
   const handleDismissWarning = () => {
     setShowWarning(false);
+    if (currentScreen === 'instructions' || wasFullscreenRef.current) {
+      restoreFullScreen();
+    }
   };
 
-  // Subscribe to native fullscreen changes from Electron
+  // Subscribe to native fullscreen changes and transitions from Electron
   useEffect(() => {
     const subscribe =
       window.electronAPI?.onFullScreenChange ||
       window.electronAPI?.onFullscreenChange;
+    const subscribeTransition = window.electronAPI?.onFullScreenTransition;
+
+    let unsubscribeTransition;
+    if (typeof subscribeTransition === 'function') {
+      unsubscribeTransition = subscribeTransition(() => {
+        markFullscreenTransition(1500);
+      });
+    }
 
     if (typeof subscribe === 'function') {
       const unsubscribe = subscribe((fullscreen) => {
         console.log("Fullscreen state changed:", fullscreen);
+        markFullscreenTransition(1500);
         setIsFullscreen(fullscreen);
         if (fullscreen) {
           setFullscreenErrorMessage('');
@@ -74,9 +155,13 @@ function App() {
         if (typeof unsubscribe === 'function') {
           unsubscribe();
         }
+        if (typeof unsubscribeTransition === 'function') {
+          unsubscribeTransition();
+        }
       };
     } else {
       const handleBrowserFullscreenChange = () => {
+        markFullscreenTransition(1500);
         setIsFullscreen(!!document.fullscreenElement);
       };
       document.addEventListener('fullscreenchange', handleBrowserFullscreenChange);
@@ -87,6 +172,9 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (isFullscreen) {
+      wasFullscreenRef.current = true;
+    }
     window.__isFullscreen = isFullscreen;
   }, [isFullscreen]);
 
@@ -212,7 +300,9 @@ function App() {
   };
 
   const handleEnterFullScreen = async () => {
+    if (isFullscreen || isFullscreenTransitioningRef.current) return;
     setFullscreenErrorMessage('');
+    markFullscreenTransition(1500);
     try {
       if (window.electronAPI && typeof window.electronAPI.enterFullScreen === 'function') {
         await window.electronAPI.enterFullScreen();

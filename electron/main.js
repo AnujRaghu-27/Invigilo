@@ -31,12 +31,26 @@ const createWindow = () => {
     },
   });
 
+  mainWindow.on("will-enter-full-screen", () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("fullscreen-transition", true);
+    }
+  });
+
+  mainWindow.on("will-leave-full-screen", () => {
+    if (isQuitting) return;
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("fullscreen-transition", false);
+    }
+  });
+
   mainWindow.on("enter-full-screen", () => {
     if (process.platform === "darwin") {
       mainWindow.setWindowButtonVisibility(false);
     }
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send("fullscreen-change", true);
+      mainWindow.focus();
     }
   });
 
@@ -87,7 +101,9 @@ ipcMain.handle("enter-fullscreen", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   if (win) {
     isAllowedToExit = false;
-    win.setFullScreen(true);
+    if (!win.isFullScreen()) {
+      win.setFullScreen(true);
+    }
   }
 });
 
