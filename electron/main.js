@@ -109,7 +109,13 @@ const createWindow = () => {
     }
   );
 
-  mainWindow.loadURL("http://localhost:5173");
+  if (app.isPackaged) {
+    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+  } else {
+    mainWindow.loadURL("http://localhost:5173").catch(() => {
+      mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+    });
+  }
 };
 
 ipcMain.handle("check-fullscreen", (event) => {
@@ -163,7 +169,9 @@ ipcMain.handle("confirm-quit", handleConfirmQuit);
 ipcMain.on("confirm-quit", handleConfirmQuit);
 
 ipcMain.handle("save-camera-frame", (_event, buffer) => {
-  const dir = path.join(__dirname, "../screenshots");
+  const dir = app.isPackaged
+    ? path.join(app.getPath("userData"), "screenshots")
+    : path.join(__dirname, "../screenshots");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `camera_${Date.now()}.jpg`), Buffer.from(buffer));
 });

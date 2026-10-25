@@ -1,16 +1,38 @@
 {
   "name": "invigilo",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "commonjs",
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "electron": "electron .",
     "build": "vite build",
+    "dist": "npm run build && electron-builder --mac dmg",
     "admin:review": "node scripts/admin-manager.js",
     "lint": "eslint .",
     "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.invigilo.app",
+    "productName": "Invigilo",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.education",
+      "identity": null
+    },
+    "dmg": {
+      "title": "${productName} ${version}"
+    }
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -22,6 +44,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
     "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
