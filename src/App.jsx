@@ -319,11 +319,14 @@ function App() {
               </p>
               <button
                 type="button"
-                className="btn-fullscreen"
+                className={`btn-fullscreen ${isFullscreen ? 'btn-fullscreen-granted' : ''}`}
                 onClick={handleEnterFullScreen}
               >
                 Give Full Screen Permissions
               </button>
+              {isFullscreen && (
+                <p className="camera-status-msg status-success">Fullscreen access granted</p>
+              )}
               {fullscreenErrorMessage && (
                 <p className="camera-status-msg status-error">{fullscreenErrorMessage}</p>
               )}
@@ -335,7 +338,7 @@ function App() {
         <div className="action-area">
           <button
             type="button"
-            className="btn-go-to-test"
+            className={`btn-go-to-test ${!isGoToTestDisabled ? 'btn-go-to-test-enabled' : ''}`}
             onClick={handleGoToTest}
             disabled={isGoToTestDisabled}
           >
